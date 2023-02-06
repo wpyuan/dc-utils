@@ -1,7 +1,6 @@
 package com.github.dc.utils;
 
 import com.github.dc.utils.pojo.ImportResult;
-import com.sun.deploy.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -11,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.StringJoiner;
 
 /**
  * <p>
@@ -43,7 +43,7 @@ public class SAXParserExcelTest {
                     .success(false)
                     .timestamp(LocalDateTime.now())
                     //.content(StringUtils.join(ArrayUtils.insert(0, ArrayUtils.toStringArray(e.getStackTrace()), new String[]{e.getMessage()}), " "))
-                    .content(StringUtils.join(Arrays.asList(e.getStackTrace()), " "))
+                    .content(e.getMessage())
                     .build();
             result.add(exceptionResult);
         }
