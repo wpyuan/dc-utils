@@ -1,8 +1,11 @@
 package com.github.dc.utils.pojo;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * @author PeiYuan
  */
+@EqualsAndHashCode
 public class Pair<K, V> {
     private K k;
     private V v;
