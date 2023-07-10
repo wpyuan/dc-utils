@@ -1,11 +1,13 @@
 package com.github.dc.utils.pojo;
 
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * @author PeiYuan
  */
 @EqualsAndHashCode
+@ToString
 public class Pair<K, V> {
     private K k;
     private V v;
