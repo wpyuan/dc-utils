@@ -3,6 +3,9 @@ package com.github.dc.utils;
 import lombok.experimental.UtilityClass;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * <p>
@@ -15,14 +18,17 @@ import java.lang.reflect.Field;
 public class ReflectUtils {
 
     /**
-     * 获取对象字段值
+     * 获取对象字段值(只往上找一级父类)
      * @param target 对象
      * @param fieldName 字段名
      * @return 字段值
      */
     public static Object getFieldValue(Object target, String fieldName) {
         Class clazz = target.getClass();
-        Field[] field = clazz.getDeclaredFields();
+        List<Field> field = new ArrayList<>();
+        field.addAll(Arrays.asList(clazz.getDeclaredFields()));
+        field.addAll(Arrays.asList(clazz.getSuperclass().getDeclaredFields()));
+
         for (Field f : field) {
             if (!fieldName.equals(f.getName())) {
                 continue;
