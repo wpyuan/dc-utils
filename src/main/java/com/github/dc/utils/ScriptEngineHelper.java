@@ -17,6 +17,7 @@ import java.util.Map;
 public class ScriptEngineHelper extends ScriptEngineMethod {
 
     public static ScriptEngineHelper init() {
+        System.setProperty("engine.WarnInterpreterOnly","false");
         System.setProperty("nashorn.args","--no-deprecation-warning");
         ScriptEngineHelper scriptEngineHelper = new ScriptEngineHelper();
         ScriptEngineManager manager = new ScriptEngineManager();
