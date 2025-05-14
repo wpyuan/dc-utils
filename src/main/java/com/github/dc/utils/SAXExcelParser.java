@@ -1,23 +1,23 @@
 package com.github.dc.utils;
 
 import com.github.dc.utils.pojo.Pair;
-import lombok.experimental.UtilityClass;
+import com.github.dc.utils.pojo.ThreeConsumer;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
 import org.apache.poi.xssf.model.SharedStringsTable;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -31,48 +31,69 @@ import java.util.function.BiConsumer;
  * @author wangpeiyuan
  * @date 2022/10/12 8:55
  */
-@UtilityClass
 @Slf4j
-public class SAXParserExcelUtils {
+public class SAXExcelParser {
+    /**
+     * 要读取的文件
+     */
+    private File file;
+    /**
+     * 文件有效区域的起始行号，可设置数据行，跳过标题行读取。默认标题行在第一行
+     */
+    private int beginRowNum = 1;
 
-    public static void read(InputStream fileInputStream, BiConsumer<Pair<Integer, Integer>, List<String>> rowHandler) throws Exception {
-        try (OPCPackage pkg = OPCPackage.open(fileInputStream);) {
+
+    public static SAXExcelParser start() {
+        return new SAXExcelParser();
+    }
+
+    public SAXExcelParser file(File file) {
+        this.file = file;
+        return this;
+    }
+
+    public SAXExcelParser beginRowNum(int beginRowNum) {
+        this.beginRowNum = beginRowNum;
+        return this;
+    }
+
+    public void run(ThreeConsumer<Integer, Integer, List<String>> rowHandler) throws Exception {
+        long startTime = System.currentTimeMillis();
+        try (OPCPackage pkg = OPCPackage.open(this.file)) {
             XSSFReader xssfReader = new XSSFReader(pkg);
             XSSFReader.SheetIterator it = (XSSFReader.SheetIterator) xssfReader.getSheetsData();
-            int sheetIndex = 1;
-            while (it.hasNext()) {
-                try (InputStream is = it.next(); SharedStringsTable sst = xssfReader.getSharedStringsTable();){
-                    byte[] isBytes = IOUtils.toByteArray(is);
-                    SAXParser saxParser = SAXParserFactory.newInstance().newSAXParser();
-                    SheetHandler handler = new SheetHandler(sst, rowHandler, sheetIndex);
-                    InputSource inputSource = new InputSource(new ByteArrayInputStream(isBytes));
-                    saxParser.parse(inputSource, handler);
-                } catch (Exception e) {
-                    log.error("excel读取异常", e);
-                } finally {
-                    sheetIndex ++;
+            try (SharedStringsTable sst = xssfReader.getSharedStringsTable()){
+                SAXParser saxParser = SAXParserFactory.newInstance().newSAXParser();
+                int sheetIndex = 1;
+                while (it.hasNext()) {
+                    try (InputStream is = it.next()) {
+                        SheetHandler handler = new SheetHandler(sst, rowHandler, sheetIndex, this.beginRowNum);
+                        saxParser.parse(is, handler);
+                    } finally {
+                        sheetIndex ++;
+                    }
                 }
             }
+        } finally {
+            log.debug("读取【{}】Excel并处理结束，耗时{}秒", this.file.getName(), BigDecimal.valueOf((System.currentTimeMillis() - startTime)).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP));
         }
     }
 
-    private static class SheetHandler extends DefaultHandler {
+    private class SheetHandler extends DefaultHandler {
         //取SST 的索引对应的值
         private SharedStringsTable sst;
-
-        public void setSst(SharedStringsTable sst) {
-            this.sst = sst;
-        }
-
         // 每行数据读完就执行
-        private BiConsumer<Pair<Integer, Integer>, List<String>> rowHandler;
-
+        private ThreeConsumer<Integer, Integer, List<String>> rowHandler;
+        // 第几个sheet页，从1开始
         private int sheetIndex;
+        // 读取excel内容起始行
+        private int beginRowNum;
 
-        public SheetHandler(SharedStringsTable sst, BiConsumer<Pair<Integer, Integer>, List<String>> rowHandler, int sheetIndex) {
+        public SheetHandler(SharedStringsTable sst, ThreeConsumer<Integer, Integer, List<String>> rowHandler, int sheetIndex, int beginRowNum) {
             this.sst = sst;
             this.rowHandler = rowHandler;
             this.sheetIndex = sheetIndex;
+            this.beginRowNum = beginRowNum;
         }
 
         /**
@@ -82,26 +103,18 @@ public class SAXParserExcelUtils {
          * 需要在v标签结束时根据 index(lastContents)获取一次真正的值
          */
         private String lastContents;
-
         //有效数据矩形区域,A1:Y2
         private String dimension;
-
         //根据dimension得出每行的数据长度
         private int longest;
-
         //上个有内容的单元格id，判断空单元格
         private String lastCellid;
-
         //上一行id, 判断空行
         private String lastRowid;
-
         // 判断单元格cell的c标签下是否有v，否则可能数据错位
         private boolean hasV = false;
-
-
         //行数据保存
         private List<String> currentRow;
-
         //单元格内容是SST 的索引
         private boolean isSSTIndex = false;
 
@@ -124,7 +137,9 @@ public class SAXParserExcelUtils {
                     if (gap > 1) {
                         gap -= 1;
                         while (gap > 0) {
-                            rowHandler.accept(Pair.of(sheetIndex, Integer.valueOf(rowNum)-1), new ArrayList<>());
+                            if (this.beginRowNum < Integer.valueOf(rowNum)-1) {
+                                rowHandler.accept(sheetIndex, Integer.parseInt(rowNum)-1, new ArrayList<>());
+                            }
                             gap--;
                         }
                     }
@@ -176,15 +191,30 @@ public class SAXParserExcelUtils {
                         currentRow.add("");
                     }
                 }
-
-                rowHandler.accept(Pair.of(sheetIndex, Integer.valueOf(lastRowid)), currentRow);
+                if (this.beginRowNum < Integer.parseInt(lastRowid)) {
+                    rowHandler.accept(sheetIndex, Integer.valueOf(lastRowid), currentRow);
+                }
                 lastCellid = null;
             }
 
             //单元格结束，没有v时需要补位
             if (qName.equals("c")){
                 if (!hasV) {
-                    currentRow.add("");
+                    //单元格的值是SST 的索引
+                    if (isSSTIndex) {
+                        String sstIndex = lastContents.toString();
+                        try {
+                            int idx = Integer.parseInt(sstIndex);
+                            XSSFRichTextString rtss = new XSSFRichTextString(
+                                    sst.getEntryAt(idx));
+                            lastContents = rtss.toString();
+                            currentRow.add(lastContents);
+                        } catch (NumberFormatException ex) {
+                            log.warn("数字格式化失败！数据：" + lastContents, ex);
+                        }
+                    } else {
+                        currentRow.add(lastContents);
+                    }
                 }
                 hasV = false;
             }
@@ -230,7 +260,7 @@ public class SAXParserExcelUtils {
          * @param cellId 单元格定位id，行列号，AB7
          * @return
          */
-        public static int covertRowIdToInt(String cellId) {
+        public int covertRowIdToInt(String cellId) {
             StringBuilder sb = new StringBuilder();
             String column = "";
             //从cellId中提取列号

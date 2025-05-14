@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 /**
  * <p>
- *     导入结果
+ *     Excel每行读取的处理结果
  * </p>
  *
  * @author wangpeiyuan
@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class ImportResult<T> {
+public class ReadResult<T> {
     /**
      * sheet位置
      */

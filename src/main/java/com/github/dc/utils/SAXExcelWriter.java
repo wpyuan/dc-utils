@@ -11,6 +11,7 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DateFormat;
 import java.util.Comparator;
 import java.util.Date;
@@ -86,6 +87,10 @@ public class SAXExcelWriter {
         return this;
     }
 
+    /**
+     * 执行写入Excel
+     * @param getDataFunction 传参当前批次，不分批处理时为-1，返回当前批次数据List
+     */
     public void run(Function<Integer, List<Map<String, Object>>> getDataFunction) {
         long startTime = System.currentTimeMillis();
         int total = 0;
@@ -110,10 +115,16 @@ public class SAXExcelWriter {
         } catch (Exception e) {
             log.error("写入excel异常！", e);
         } finally {
-            log.debug("导出{}行到【{}】Excel，耗时{}秒", total, this.sheetName, BigDecimal.valueOf((System.currentTimeMillis() - startTime)).divide(BigDecimal.valueOf(1000), 1, BigDecimal.ROUND_HALF_UP));
+            BigDecimal consumingTime = BigDecimal.valueOf((System.currentTimeMillis() - startTime)).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP);
+            log.debug("导出{}行到【{}】Excel，耗时{}秒，平均每秒写入{}行", total, this.sheetName, consumingTime, BigDecimal.valueOf(total).divide(consumingTime, 2, RoundingMode.HALF_UP));
         }
     }
 
+    /**
+     * 创建sheet页
+     * @param workbook
+     * @param sheetName
+     */
     private void initSheet(SXSSFWorkbook workbook, String sheetName) {
         this.currentSheet = workbook.createSheet(sheetName);
         // 创建可复用的单元格样式（关键：减少样式对象数量）
@@ -140,6 +151,11 @@ public class SAXExcelWriter {
         this.currentSheet.createFreezePane(0, 1);
     }
 
+    /**
+     * 写入当前批次数据
+     * @param workbook
+     * @param dataBatch
+     */
     private void writeData(SXSSFWorkbook workbook, List<Map<String, Object>> dataBatch) {
         for (Map<String, Object> rowData : dataBatch) {
             // 自动分页到新工作表
@@ -159,6 +175,11 @@ public class SAXExcelWriter {
         }
     }
 
+    /**
+     * 写入当前行数据
+     * @param excelWriteSetup
+     * @param rowData
+     */
     private void writeRowData(ExcelWriteSetup excelWriteSetup, Map<String, Object> rowData) {
         int rowNum = this.currentSheet.getLastRowNum() + 1;
         SXSSFRow row = this.currentSheet.createRow(rowNum);

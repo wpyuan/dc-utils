@@ -1,6 +1,7 @@
 package com.github.dc.utils;
 
 import com.github.dc.utils.pojo.ExcelWriteSetup;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -8,6 +9,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 
+@Slf4j
 public class SAXWriteExcelTest {
 
     public static void main(String[] args) throws IOException {
@@ -113,10 +115,10 @@ public class SAXWriteExcelTest {
                 "监控内存：通过jvisualvm或Arthas监控堆内存使用情况。");
         page2.add(student);
 
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < 18; i++) {
             page1.addAll(page1);
         }
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < 18; i++) {
             page2.addAll(page2);
         }
 
@@ -156,6 +158,8 @@ public class SAXWriteExcelTest {
                             return page1.subList((pageNum - 1) * pageSize, page1.size() - 1);
                         }
                     });
+        } finally {
+            log.debug("当前内存已使用{}", ByteFormatter.formatBytes(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));
         }
     }
 }
