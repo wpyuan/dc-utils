@@ -115,10 +115,10 @@ public class SAXWriteExcelTest {
                 "监控内存：通过jvisualvm或Arthas监控堆内存使用情况。");
         page2.add(student);
 
-        for (int i = 0; i < 18; i++) {
+        for (int i = 0; i < 10; i++) {
             page1.addAll(page1);
         }
-        for (int i = 0; i < 18; i++) {
+        for (int i = 0; i < 12; i++) {
             page2.addAll(page2);
         }
 
@@ -146,17 +146,18 @@ public class SAXWriteExcelTest {
                             .build())
                     .out(fos)
                     .run(pageNum -> {
-                        if (pageNum == -1) {
-                            return page1;
-                        }
-                        if ((pageNum - 1) * pageSize > page1.size()) {
-                            return null;
-                        }
-                        try {
-                            return page1.subList((pageNum - 1) * pageSize, pageNum * pageSize);
-                        } catch (Exception e) {
-                            return page1.subList((pageNum - 1) * pageSize, page1.size() - 1);
-                        }
+                        return null;
+//                        if (pageNum == -1) {
+//                            return page1;
+//                        }
+//                        if ((pageNum - 1) * pageSize > page1.size()) {
+//                            return null;
+//                        }
+//                        try {
+//                            return page1.subList((pageNum - 1) * pageSize, pageNum * pageSize);
+//                        } catch (Exception e) {
+//                            return page1.subList((pageNum - 1) * pageSize, page1.size() - 1);
+//                        }
                     });
         } finally {
             log.debug("当前内存已使用{}", ByteFormatter.formatBytes(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()));

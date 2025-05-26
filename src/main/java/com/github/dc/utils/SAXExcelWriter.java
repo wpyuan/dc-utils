@@ -2,6 +2,7 @@ package com.github.dc.utils;
 
 import com.github.dc.utils.pojo.ExcelWriteSetup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.streaming.SXSSFCell;
 import org.apache.poi.xssf.streaming.SXSSFRow;
@@ -13,10 +14,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DateFormat;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 
 /**
@@ -104,10 +102,12 @@ public class SAXExcelWriter {
             int batchNum = this.setup.isBatchWrite() ? 1 : -1;
             // 3.分批次写入数据
             List<Map<String, Object>> dataBatch = getDataFunction.apply(batchNum);
-            do {
-                total += dataBatch.size();
-                writeData(workbook, dataBatch);
-            } while (batchNum != -1 && (dataBatch = getDataFunction.apply(++batchNum)) != null);
+            if (CollectionUtils.isNotEmpty(dataBatch)) {
+                do {
+                    total += dataBatch.size();
+                    writeData(workbook, dataBatch);
+                } while (batchNum != -1 && (dataBatch = getDataFunction.apply(++batchNum)) != null);
+            }
             // 4.写入文件并清理临时文件
             workbook.write(this.os);
             // 清理临时文件
