@@ -116,7 +116,11 @@ public class SAXExcelWriter {
             log.error("写入excel异常！", e);
         } finally {
             BigDecimal consumingTime = BigDecimal.valueOf((System.currentTimeMillis() - startTime)).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP);
-            log.debug("导出{}行到【{}】Excel，耗时{}秒，平均每秒写入{}行", total, this.sheetName, consumingTime, BigDecimal.valueOf(total).divide(consumingTime, 2, RoundingMode.HALF_UP));
+            if (consumingTime.equals(BigDecimal.ZERO)) {
+                log.debug("导出{}行到【{}】Excel，耗时{}秒", total, this.sheetName, consumingTime);
+            } else {
+                log.debug("导出{}行到【{}】Excel，耗时{}秒，平均每秒写入{}行", total, this.sheetName, consumingTime, BigDecimal.valueOf(total).divide(consumingTime, 2, RoundingMode.HALF_UP));
+            }
         }
     }
 
