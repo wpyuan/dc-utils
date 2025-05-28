@@ -115,7 +115,7 @@ public class SAXExcelWriter {
         } catch (Exception e) {
             log.error("写入excel异常！", e);
         } finally {
-            BigDecimal consumingTime = BigDecimal.valueOf((System.currentTimeMillis() - startTime)).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP);
+            BigDecimal consumingTime = BigDecimal.valueOf((System.currentTimeMillis() - startTime)).divide(BigDecimal.valueOf(1000), 3, RoundingMode.HALF_UP);
             if (consumingTime.equals(BigDecimal.ZERO)) {
                 log.debug("导出{}行到【{}】Excel，耗时{}秒", total, this.sheetName, consumingTime);
             } else {
