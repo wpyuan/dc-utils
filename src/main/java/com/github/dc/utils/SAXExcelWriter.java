@@ -189,6 +189,9 @@ public class SAXExcelWriter {
         SXSSFRow row = this.currentSheet.createRow(rowNum);
         for (ExcelWriteSetup.HeaderCell headerCell : excelWriteSetup.getHeaderCell()) {
             Object value = rowData.get(headerCell.getVarName());
+            if (value == null) {
+                continue;
+            }
             if (value instanceof Date) {
                 value = DateFormat.getDateTimeInstance().format((Date) value);
             }
