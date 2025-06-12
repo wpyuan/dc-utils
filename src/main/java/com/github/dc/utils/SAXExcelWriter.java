@@ -188,6 +188,8 @@ public class SAXExcelWriter {
         int rowNum = this.currentSheet.getLastRowNum() + 1;
         SXSSFRow row = this.currentSheet.createRow(rowNum);
         for (ExcelWriteSetup.HeaderCell headerCell : excelWriteSetup.getHeaderCell()) {
+            SXSSFCell cell = row.createCell(headerCell.getOrderSeq());
+            cell.setCellStyle(this.dataStyle);
             Object value = rowData.get(headerCell.getVarName());
             if (value == null) {
                 continue;
@@ -195,13 +197,11 @@ public class SAXExcelWriter {
             if (value instanceof Date) {
                 value = DateFormat.getDateTimeInstance().format((Date) value);
             }
-            SXSSFCell cell = row.createCell(headerCell.getOrderSeq());
             // The maximum length of cell contents (text) is 32767 characters
             if (String.valueOf(value).length() > 32767) {
                 value = String.valueOf(value).substring(0, 32758) + "...(超长截断)";
             }
             cell.setCellValue(String.valueOf(value));
-            cell.setCellStyle(this.dataStyle);
         }
     }
 
