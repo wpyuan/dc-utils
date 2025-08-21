@@ -61,6 +61,10 @@ public class SAXExcelWriter {
      */
     private SXSSFSheet currentSheet;
     /**
+     * 文本格式的CellStyle
+     */
+    private CellStyle textStyle;
+    /**
      * 单sheet页最大行数 0...1048575
      */
     public static final int MAX_ROWS_PER_SHEET = 1048575;
@@ -138,12 +142,18 @@ public class SAXExcelWriter {
         if (this.dataStyle == null) {
             this.dataStyle = createDataStyle(workbook);
         }
+        if (this.textStyle == null) {
+            this.textStyle = createTextStyle(workbook);
+        }
         // 写入表头
         this.setup.getHeaderCell().sort(Comparator.comparing(ExcelWriteSetup.HeaderCell::getOrderSeq));
         SXSSFRow headerRow = this.currentSheet.createRow(0);
         headerRow.setHeight((short) 400);
         SXSSFCell cell = null;
+        int colIndex = 0;
         for (ExcelWriteSetup.HeaderCell headerCell : this.setup.getHeaderCell()) {
+            // 每列默认字符串
+            this.currentSheet.setDefaultColumnStyle(colIndex++, this.textStyle);
             cell = headerRow.createCell(headerCell.getOrderSeq());
             cell.setCellValue(headerCell.getText());
             cell.setCellStyle(this.headerStyle);
@@ -249,5 +259,11 @@ public class SAXExcelWriter {
         style.setBorderTop(BorderStyle.THIN);
         style.setWrapText(true);
         return style;
+    }
+
+    private CellStyle createTextStyle(SXSSFWorkbook workbook) {
+        CellStyle textStyle = workbook.createCellStyle();
+        textStyle.setDataFormat(workbook.createDataFormat().getFormat("@")); // "@"表示文本格式
+        return textStyle;
     }
 }
