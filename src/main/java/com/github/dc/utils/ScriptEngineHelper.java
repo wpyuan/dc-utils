@@ -1,9 +1,6 @@
 package com.github.dc.utils;
 
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.SimpleScriptContext;
+import javax.script.*;
 import java.util.Map;
 
 /**
@@ -18,10 +15,16 @@ public class ScriptEngineHelper extends ScriptEngineMethod {
 
     public static ScriptEngineHelper init() {
         System.setProperty("engine.WarnInterpreterOnly","false");
-        System.setProperty("nashorn.args","--no-deprecation-warning");
+        System.setProperty("nashorn.args","--no-deprecation-warning --language=es6");
         ScriptEngineHelper scriptEngineHelper = new ScriptEngineHelper();
         ScriptEngineManager manager = new ScriptEngineManager();
         ScriptEngine engine = manager.getEngineByName("js");
+        // 设置 Nashorn 选项以启用 ES6 特性
+        try {
+            engine.eval("load('nashorn:mozilla_compat.js');");
+        } catch (ScriptException e) {
+            System.out.println("设置 Nashorn 选项以启用 ES6 特性失败。" + e.getMessage());
+        }
         scriptEngineHelper.engine(engine);
         return scriptEngineHelper;
     }

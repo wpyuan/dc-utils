@@ -11,7 +11,7 @@
     <name>dc-utils</name>
     <groupId>com.github.wpyuan</groupId>
     <artifactId>dc-utils</artifactId>
-    <version>0.5.3</version>
+    <version>0.5.4</version>
     <description>java utils</description>
     <packaging>jar</packaging>
 
