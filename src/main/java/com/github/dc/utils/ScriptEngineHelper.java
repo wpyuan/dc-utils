@@ -15,6 +15,16 @@ public class ScriptEngineHelper extends ScriptEngineMethod {
 
     public static ScriptEngineHelper init() {
         System.setProperty("engine.WarnInterpreterOnly","false");
+        System.setProperty("nashorn.args","--no-deprecation-warning");
+        ScriptEngineHelper scriptEngineHelper = new ScriptEngineHelper();
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = manager.getEngineByName("js");
+        scriptEngineHelper.engine(engine);
+        return scriptEngineHelper;
+    }
+
+    public static ScriptEngineHelper initEs6() {
+        System.setProperty("engine.WarnInterpreterOnly","false");
         System.setProperty("nashorn.args","--no-deprecation-warning --language=es6");
         ScriptEngineHelper scriptEngineHelper = new ScriptEngineHelper();
         ScriptEngineManager manager = new ScriptEngineManager();
