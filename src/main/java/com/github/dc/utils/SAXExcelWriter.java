@@ -61,6 +61,10 @@ public class SAXExcelWriter {
      */
     private SXSSFSheet currentSheet;
     /**
+     * 文本格式的CellStyle
+     */
+    private CellStyle textStyle;
+    /**
      * 单sheet页最大行数 0...1048575
      */
     public static final int MAX_ROWS_PER_SHEET = 1048575;
@@ -138,12 +142,18 @@ public class SAXExcelWriter {
         if (this.dataStyle == null) {
             this.dataStyle = createDataStyle(workbook);
         }
+        if (this.textStyle == null) {
+            this.textStyle = createTextStyle(workbook);
+        }
         // 写入表头
         this.setup.getHeaderCell().sort(Comparator.comparing(ExcelWriteSetup.HeaderCell::getOrderSeq));
         SXSSFRow headerRow = this.currentSheet.createRow(0);
         headerRow.setHeight((short) 400);
         SXSSFCell cell = null;
+        int colIndex = 0;
         for (ExcelWriteSetup.HeaderCell headerCell : this.setup.getHeaderCell()) {
+            // 每列默认字符串
+            this.currentSheet.setDefaultColumnStyle(colIndex++, this.textStyle);
             cell = headerRow.createCell(headerCell.getOrderSeq());
             cell.setCellValue(headerCell.getText());
             cell.setCellStyle(this.headerStyle);
@@ -188,6 +198,8 @@ public class SAXExcelWriter {
         int rowNum = this.currentSheet.getLastRowNum() + 1;
         SXSSFRow row = this.currentSheet.createRow(rowNum);
         for (ExcelWriteSetup.HeaderCell headerCell : excelWriteSetup.getHeaderCell()) {
+            SXSSFCell cell = row.createCell(headerCell.getOrderSeq());
+            cell.setCellStyle(this.dataStyle);
             Object value = rowData.get(headerCell.getVarName());
             if (value == null) {
                 continue;
@@ -195,13 +207,11 @@ public class SAXExcelWriter {
             if (value instanceof Date) {
                 value = DateFormat.getDateTimeInstance().format((Date) value);
             }
-            SXSSFCell cell = row.createCell(headerCell.getOrderSeq());
             // The maximum length of cell contents (text) is 32767 characters
             if (String.valueOf(value).length() > 32767) {
                 value = String.valueOf(value).substring(0, 32758) + "...(超长截断)";
             }
             cell.setCellValue(String.valueOf(value));
-            cell.setCellStyle(this.dataStyle);
         }
     }
 
@@ -249,5 +259,11 @@ public class SAXExcelWriter {
         style.setBorderTop(BorderStyle.THIN);
         style.setWrapText(true);
         return style;
+    }
+
+    private CellStyle createTextStyle(SXSSFWorkbook workbook) {
+        CellStyle textStyle = workbook.createCellStyle();
+        textStyle.setDataFormat(workbook.createDataFormat().getFormat("@")); // "@"表示文本格式
+        return textStyle;
     }
 }

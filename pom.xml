@@ -8,9 +8,10 @@
         <artifactId>oss-parent</artifactId>
         <version>7</version>
     </parent>
+    <name>dc-utils</name>
     <groupId>com.github.wpyuan</groupId>
     <artifactId>dc-utils</artifactId>
-    <version>0.5.0</version>
+    <version>0.5.5</version>
     <description>java utils</description>
     <packaging>jar</packaging>
 
