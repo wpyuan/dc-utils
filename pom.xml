@@ -47,13 +47,9 @@
 
     <distributionManagement>
         <repository>
-            <id>sonatype-nexus-staging</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+            <id>2123028-release-hpD7xI</id>
+            <url>https://packages.aliyun.com/maven/repository/2123028-release-hpD7xI/</url>
         </repository>
-        <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
     </distributionManagement>
 
     <build>
@@ -91,66 +87,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!--  配置 javadoc-->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.5.0</version>
-                <configuration>
-                    <!-- TODO 临时解决不规范的javadoc生成报错,后面要规范化后把这行去掉 -->
-                    <additionalJOption>-Xdoclint:none</additionalJOption>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--  配置 sonatype mvn clean deploy后自动release我们的项目到Maven中央仓库-->
-            <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.7</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <serverId>sonatype-nexus-staging</serverId>
-                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
-                </configuration>
-            </plugin>
-            <!-- 配置 GPG-->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>1.6</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <!--                <configuration>-->
-                <!--                    <skip>true</skip>-->
-                <!--                </configuration>-->
-            </plugin>
-            <!--            <plugin>-->
-            <!--                <groupId>org.owasp</groupId>-->
-            <!--                <artifactId>dependency-check-maven</artifactId>-->
-            <!--                <version>6.2.2</version>-->
-            <!--                <executions>-->
-            <!--                    <execution>-->
-            <!--                        <goals>-->
-            <!--                            <goal>check</goal>-->
-            <!--                        </goals>-->
-            <!--                    </execution>-->
-            <!--                </executions>-->
-            <!--            </plugin>-->
         </plugins>
     </build>
 
