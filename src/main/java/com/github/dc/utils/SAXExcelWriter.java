@@ -158,8 +158,8 @@ public class SAXExcelWriter {
             cell.setCellValue(headerCell.getText());
             cell.setCellStyle(this.headerStyle);
             // Excel列宽单位转换：1汉字符=512单位，并增加110%缓冲
-            // 简化计算：1汉字符≈1宽度单位（实际需乘以512）
-            this.currentSheet.setColumnWidth(headerCell.getOrderSeq(), (int) (headerCell.getText().length() * 2.1 * 512));
+            // 简化计算：1汉字符≈1宽度单位（实际需乘以512）最小五个字宽度
+            this.currentSheet.setColumnWidth(headerCell.getOrderSeq(), (int) (Math.max(5, headerCell.getText().length()) * 2.1 * 512));
         }
         // 冻结前1行和第0列（参数为行数、列数）
         this.currentSheet.createFreezePane(0, 1);
