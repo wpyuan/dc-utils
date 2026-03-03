@@ -1,14 +1,12 @@
 package com.github.dc.utils;
 
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 /**
  * <p>
- * id生成器
+ * ID生成器（53位版本，适配JS安全整数范围）
  * </p>
  *
  * @author wangpeiyuan
@@ -20,27 +18,30 @@ public class IdGenerator {
     /**
      * id生成器map
      */
-    public static final ConcurrentHashMap<String, SnowFlakeImpl> BUILDER = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<Integer, SnowFlakeImpl> BUILDER = new ConcurrentHashMap<>();
 
     /**
-     * 获取单个id
+     * 获取单个id（53位，不超过JS安全整数范围）
      *
-     * @param dataCenterId 数据中心标识
-     * @param machineId    机器标识
+     * @param machineId 机器标识（0-3）
      * @return id
      */
-    public Long get(Integer dataCenterId, Integer machineId) {
-        SnowFlakeImpl snowFlake;
-        String key = dataCenterId + "_" + machineId;
-        synchronized (BUILDER) {
-            if (BUILDER.containsKey(key)) {
-                snowFlake = BUILDER.get(key);
-            } else {
-                snowFlake = new SnowFlakeImpl(dataCenterId, machineId);
-                BUILDER.put(key, snowFlake);
-            }
-        }
+    public Long get(Integer machineId) {
+        SnowFlakeImpl snowFlake = BUILDER.computeIfAbsent(machineId, SnowFlakeImpl::new);
         return snowFlake.nextId();
+    }
+
+    /**
+     * 兼容旧方法（dataCenterId将被忽略）
+     *
+     * @param dataCenterId 数据中心标识（已废弃，将被忽略）
+     * @param machineId    机器标识（0-3）
+     * @return id
+     * @deprecated 请使用 {@link #get(Integer)} 方法
+     */
+    @Deprecated
+    public Long get(Integer dataCenterId, Integer machineId) {
+        return get(machineId);
     }
 
 }

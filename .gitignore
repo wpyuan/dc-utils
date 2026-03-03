@@ -19,6 +19,7 @@ target/
 *.iml
 *.ipr
 .murphy.yml
+.claude
 
 ### NetBeans ###
 /nbproject/private/
