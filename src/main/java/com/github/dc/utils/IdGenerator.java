@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>
- * ID生成器（53位版本，适配JS安全整数范围）
+ * ID生成器
  * </p>
  *
  * @author wangpeiyuan
@@ -16,32 +16,43 @@ import java.util.concurrent.ConcurrentHashMap;
 public class IdGenerator {
 
     /**
-     * id生成器map
+     * 64位ID生成器map
      */
-    public static final ConcurrentHashMap<Integer, SnowFlakeImpl> BUILDER = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, SnowFlakeImpl> BUILDER_64 = new ConcurrentHashMap<>();
 
     /**
-     * 获取单个id（53位，不超过JS安全整数范围）
-     *
-     * @param machineId 机器标识（0-3）
-     * @return id
+     * 53位ID生成器map（适配JS安全整数范围）
      */
-    public Long get(Integer machineId) {
-        SnowFlakeImpl snowFlake = BUILDER.computeIfAbsent(machineId, SnowFlakeImpl::new);
+    private static final ConcurrentHashMap<Integer, SnowFlake53Bit> BUILDER_53 = new ConcurrentHashMap<>();
+
+    /**
+     * 获取64位雪花ID（原始版本，可能超出JS安全整数范围）
+     *
+     * @param dataCenterId 数据中心标识（0-31）
+     * @param machineId    机器标识（0-31）
+     * @return 64位ID
+     */
+    public Long get(Integer dataCenterId, Integer machineId) {
+        String key = dataCenterId + "_" + machineId;
+        SnowFlakeImpl snowFlake = BUILDER_64.computeIfAbsent(key, k -> new SnowFlakeImpl(dataCenterId, machineId));
         return snowFlake.nextId();
     }
 
     /**
-     * 兼容旧方法（dataCenterId将被忽略）
+     * 获取53位雪花ID（适配JS安全整数范围，前端可直接使用）
+     * <p>
+     * 结构：39位时间戳 + 2位机器ID + 12位序列号 = 53位
+     * - 有效期：2026-03-03 至 2043-08
+     * - 支持机器数：4台（0-3）
+     * - 每毫秒并发：4096个
+     * </p>
      *
-     * @param dataCenterId 数据中心标识（已废弃，将被忽略）
-     * @param machineId    机器标识（0-3）
-     * @return id
-     * @deprecated 请使用 {@link #get(Integer)} 方法
+     * @param machineId 机器标识（0-3）
+     * @return 53位ID，不超过JS安全整数范围
      */
-    @Deprecated
-    public Long get(Integer dataCenterId, Integer machineId) {
-        return get(machineId);
+    public Long getForJs(Integer machineId) {
+        SnowFlake53Bit snowFlake = BUILDER_53.computeIfAbsent(machineId, SnowFlake53Bit::new);
+        return snowFlake.nextId();
     }
 
 }
