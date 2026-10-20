@@ -68,6 +68,11 @@ public class SAXExcelWriter {
      * 单sheet页最大行数 0...1048575
      */
     public static final int MAX_ROWS_PER_SHEET = 1048575;
+    /**
+     * 单列最大宽度，单位与setColumnWidth一致（1个字符宽=256）
+     * Excel限制单个单元格所在列宽最大为255个字符，超出时POI会抛IllegalArgumentException
+     */
+    public static final int MAX_COLUMN_WIDTH = 255 * 256;
 
 
     public static SAXExcelWriter start() {
@@ -159,10 +164,21 @@ public class SAXExcelWriter {
             cell.setCellStyle(this.headerStyle);
             // Excel列宽单位转换：1汉字符=512单位，并增加110%缓冲
             // 简化计算：1汉字符≈1宽度单位（实际需乘以512）最小五个字宽度
-            this.currentSheet.setColumnWidth(headerCell.getOrderSeq(), (int) (Math.max(5, headerCell.getText().length()) * 2.1 * 512));
+            // 注意：Excel列宽上限为255个字符（255*256单位），超过会抛IllegalArgumentException，需做上限保护
+            int columnWidth = (int) (Math.max(5, getTextLength(headerCell.getText())) * 2.1 * 512);
+            this.currentSheet.setColumnWidth(headerCell.getOrderSeq(), Math.min(columnWidth, MAX_COLUMN_WIDTH));
         }
         // 冻结前1行和第0列（参数为行数、列数）
         this.currentSheet.createFreezePane(0, 1);
+    }
+
+    /**
+     * 计算表头文本长度，避免表头文本为null时出现空指针
+     * @param text 表头文本
+     * @return 文本长度，null时返回0
+     */
+    private int getTextLength(String text) {
+        return text == null ? 0 : text.length();
     }
 
     /**
