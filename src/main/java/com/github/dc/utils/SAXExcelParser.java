@@ -3,9 +3,8 @@ package com.github.dc.utils;
 import com.github.dc.utils.pojo.ThreeConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
-import org.apache.poi.xssf.model.SharedStringsTable;
-import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -13,8 +12,10 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
+import java.io.Closeable;
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -25,6 +26,15 @@ import java.util.*;
  * <p>
  *     SAX方式解析Excel 工具
  *     注：导入前把所有单元格格式转为文本，格式转换后再比对是否数值出现异常，特别关注日期格式，如若异常，请特别处理”将日期格式转换成文本格式“
+ * </p>
+ *
+ * <p>
+ *     POI 兼容性说明：本类同时支持 POI 4.x 与 5.x。两者有两处二进制不兼容的方法签名——
+ *     {@code XSSFReader.getSharedStringsTable()} 在 5.x 返回 {@code SharedStrings} 接口（4.x 返回
+ *     {@code SharedStringsTable} 实现类），共享字符串取值方法由 {@code getEntryAt} 改名为 {@code getItemAt}。
+ *     直接调用会导致「编译通过、运行时 NoSuchMethodError」（faster 项目运行时是 POI 5.2.3，
+ *     用 4.x 的字节码调用立刻抛 {@code NoSuchMethodError: XSSFReader.getSharedStringsTable()SharedStringsTable}）。
+ *     因此这两处走反射，按运行时实际存在的版本取名，源码编译期仍以 4.x 为准。
  * </p>
  *
  * @author wangpeiyuan
@@ -182,10 +192,14 @@ public class SAXExcelParser {
 
     public void run(ThreeConsumer<Integer, Integer, List<String>> rowHandler) throws Exception {
         long startTime = System.currentTimeMillis();
-        try (OPCPackage pkg = OPCPackage.open(this.file)) {
+        // 必须以只读方式打开：OPCPackage.open(File) 是读写模式，关闭时 POI 会把整份包重新序列化写回磁盘
+        // （实测解析一个 13KB 模板后文件被改写成 10KB）。解析器对源文件必须零副作用。
+        try (OPCPackage pkg = OPCPackage.open(this.file, PackageAccess.READ)) {
             XSSFReader xssfReader = new XSSFReader(pkg);
             XSSFReader.SheetIterator it = (XSSFReader.SheetIterator) xssfReader.getSheetsData();
-            try (SharedStringsTable sst = xssfReader.getSharedStringsTable()){
+            // 5.x 返回 SharedStrings、4.x 返回 SharedStringsTable，类型不通用，按 Object 持有
+            Object sst = openSharedStrings(xssfReader);
+            try {
                 SAXParser saxParser = SAXParserFactory.newInstance().newSAXParser();
 
                 // 解析样式表（如果启用了自动日期检测）
@@ -209,9 +223,81 @@ public class SAXExcelParser {
                         sheetIndex ++;
                     }
                 }
+            } finally {
+                closeQuietly(sst);
             }
         } finally {
             log.debug("读取【{}】Excel并处理结束，耗时{}秒", this.file.getName(), BigDecimal.valueOf((System.currentTimeMillis() - startTime)).divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP));
+        }
+    }
+
+    /**
+     * 取得共享字符串表（POI 4.x / 5.x 兼容）。
+     * 反射按 {@code getSharedStringsTable()} 取，返回类型随版本不同，故以 Object 持有。
+     *
+     * @return 共享字符串表对象；工作簿没有该部件或取不到时返回 null
+     */
+    private static Object openSharedStrings(XSSFReader reader) {
+        try {
+            Method method = reader.getClass().getMethod("getSharedStringsTable");
+            return method.invoke(reader);
+        } catch (Exception e) {
+            log.warn("获取共享字符串表失败，文本单元格将取不到值", e);
+            return null;
+        }
+    }
+
+    /**
+     * 按索引取共享字符串文本（POI 4.x / 5.x 兼容）：
+     * 5.x 是 {@code getItemAt(int)}，4.x 是 {@code getEntryAt(int)}。
+     *
+     * @return 单元格文本；取不到返回 null（调用方按空单元格处理）
+     */
+    private static String sharedStringAt(Object sst, int index) {
+        if (sst == null) {
+            return null;
+        }
+        try {
+            Method method = intArgMethod(sst.getClass(), "getItemAt");
+            if (method == null) {
+                method = intArgMethod(sst.getClass(), "getEntryAt");
+            }
+            if (method == null) {
+                log.warn("当前 POI 版本的共享字符串表没有取文本的方法: {}", sst.getClass().getName());
+                return null;
+            }
+            Object value = method.invoke(sst, index);
+            return value != null ? value.toString() : null;
+        } catch (Exception e) {
+            log.warn("共享字符串取值失败，索引：{}", index, e);
+            return null;
+        }
+    }
+
+    /** 在类及其父类中查找「单个 int 入参」的公开方法，找不到返回 null */
+    private static Method intArgMethod(Class<?> type, String name) {
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            for (Method method : current.getMethods()) {
+                if (method.getName().equals(name)
+                        && method.getParameterTypes().length == 1
+                        && method.getParameterTypes()[0] == int.class) {
+                    return method;
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return null;
+    }
+
+    /** 关闭共享字符串表（两个版本都实现了 Closeable，但不保证未来也是，故只在确实是 Closeable 时关） */
+    private static void closeQuietly(Object resource) {
+        if (resource instanceof Closeable) {
+            try {
+                ((Closeable) resource).close();
+            } catch (Exception e) {
+                log.warn("关闭共享字符串表失败", e);
+            }
         }
     }
 
@@ -287,8 +373,8 @@ public class SAXExcelParser {
     }
 
     private class SheetHandler extends DefaultHandler {
-        //取SST 的索引对应的值
-        private SharedStringsTable sst;
+        //取SST 的索引对应的值（4.x 是 SharedStringsTable，5.x 是 SharedStrings，故用 Object）
+        private Object sst;
         // 每行数据读完就执行
         private ThreeConsumer<Integer, Integer, List<String>> rowHandler;
         // 第几个sheet页，从1开始
@@ -306,7 +392,7 @@ public class SAXExcelParser {
         // 当前单元格样式索引（s属性）
         private int currentStyleIndex = -1;
 
-        public SheetHandler(SharedStringsTable sst, ThreeConsumer<Integer, Integer, List<String>> rowHandler, int sheetIndex, int beginRowNum, Map<Integer, String> dateColumnFormats, boolean autoDetectDate, Map<Integer, Boolean> dateFormatCache) {
+        public SheetHandler(Object sst, ThreeConsumer<Integer, Integer, List<String>> rowHandler, int sheetIndex, int beginRowNum, Map<Integer, String> dateColumnFormats, boolean autoDetectDate, Map<Integer, Boolean> dateFormatCache) {
             this.sst = sst;
             this.rowHandler = rowHandler;
             this.sheetIndex = sheetIndex;
@@ -344,8 +430,13 @@ public class SAXExcelParser {
 
             lastContents = "";
             if (qName.equals("dimension")) {
-                dimension = attributes.getValue("ref");
-                longest = covertRowIdToInt(dimension.substring(dimension.indexOf(":") + 1));
+                // 部分工具生成的 xlsx 不写 dimension，或写成单单元格（A1），此时拿不到有效区域，
+                // 直接跳过即可（longest 保持 0，行结束时的补列逻辑随之退化为不做填充）
+                String ref = attributes.getValue("ref");
+                if (ref != null && ref.indexOf(":") > 0) {
+                    dimension = ref;
+                    longest = covertRowIdToInt(dimension.substring(dimension.indexOf(":") + 1));
+                }
             }
             //行开始
             if (qName.equals("row")) {
@@ -410,13 +501,15 @@ public class SAXExcelParser {
 
                 //判断最后一个单元格是否在最后，补齐列数
                 //【注意】有的单元格只修改单元格格式，而没有内容，会出现c标签下没有v标签，导致currentRow少
-                if (covertRowIdToInt(lastCellid) < longest) {
+                //【注意】整行没有任何单元格（<row/> 空行）时 lastCellid 为 null，
+                // 不判空会在 covertRowIdToInt 里 NPE，把整份文件读挂
+                if (lastCellid != null && covertRowIdToInt(lastCellid) < longest) {
                     int min = Math.min(currentRow.size(), covertRowIdToInt(lastCellid));
                     for (int i = 0; i < longest - min; i++) {
                         currentRow.add("");
                     }
                 }
-                if (this.beginRowNum < Integer.parseInt(lastRowid)) {
+                if (lastRowid != null && this.beginRowNum < Integer.parseInt(lastRowid)) {
                     rowHandler.accept(sheetIndex, Integer.valueOf(lastRowid), currentRow);
                 }
                 lastCellid = null;
@@ -427,16 +520,7 @@ public class SAXExcelParser {
                 if (!hasV) {
                     //单元格的值是SST 的索引
                     if (isSSTIndex) {
-                        String sstIndex = lastContents.toString();
-                        try {
-                            int idx = Integer.parseInt(sstIndex);
-                            XSSFRichTextString rtss = new XSSFRichTextString(
-                                    sst.getEntryAt(idx));
-                            lastContents = rtss.toString();
-                            processCellValue(lastContents);
-                        } catch (NumberFormatException ex) {
-                            log.warn("数字格式化失败！数据：" + lastContents, ex);
-                        }
+                        processSstCell();
                     } else {
                         processCellValue(lastContents);
                     }
@@ -449,22 +533,33 @@ public class SAXExcelParser {
                 hasV = true;
                 //单元格的值是SST 的索引
                 if (isSSTIndex) {
-                    String sstIndex = lastContents.toString();
-                    try {
-                        int idx = Integer.parseInt(sstIndex);
-                        XSSFRichTextString rtss = new XSSFRichTextString(
-                                sst.getEntryAt(idx));
-                        lastContents = rtss.toString();
-                        processCellValue(lastContents);
-                    } catch (NumberFormatException ex) {
-                        log.warn("数字格式化失败！数据：" + lastContents, ex);
-                    }
+                    processSstCell();
                 } else {
                     processCellValue(lastContents);
                 }
 
             }
 
+        }
+
+        /**
+         * 处理「值是共享字符串索引」的单元格：索引 → 文本 → 业务值
+         */
+        private void processSstCell() {
+            String sstIndex = lastContents != null ? lastContents.toString() : "";
+            try {
+                int idx = Integer.parseInt(sstIndex.trim());
+                String text = sharedStringAt(sst, idx);
+                if (text == null) {
+                    currentRow.add("");
+                    return;
+                }
+                lastContents = text;
+                processCellValue(lastContents);
+            } catch (NumberFormatException ex) {
+                log.warn("数字格式化失败！数据：" + lastContents, ex);
+                currentRow.add(lastContents != null ? lastContents : "");
+            }
         }
 
 
@@ -522,6 +617,9 @@ public class SAXExcelParser {
          * @return
          */
         public int covertRowIdToInt(String cellId) {
+            if (cellId == null || cellId.isEmpty()) {
+                return 0;
+            }
             StringBuilder sb = new StringBuilder();
             String column = "";
             //从cellId中提取列号

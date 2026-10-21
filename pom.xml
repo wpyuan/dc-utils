@@ -11,9 +11,16 @@
     <name>dc-utils</name>
     <groupId>com.github.wpyuan</groupId>
     <artifactId>dc-utils</artifactId>
-    <version>0.6.2</version>
+    <version>0.6.3</version>
     <description>java utils</description>
     <packaging>jar</packaging>
+
+    <properties>
+        <!-- 源码是 UTF-8：不显式声明时 mvn 用平台编码（Windows 上是 GBK）编译，
+             中文字符串字面量会被读成乱码，日志与提示语全错 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
 
     <dependencies>
         <dependency>
