@@ -11,7 +11,7 @@
     <name>dc-utils</name>
     <groupId>com.github.wpyuan</groupId>
     <artifactId>dc-utils</artifactId>
-    <version>0.6.3</version>
+    <version>0.6.4</version>
     <description>java utils</description>
     <packaging>jar</packaging>
 
@@ -33,7 +33,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.5</version>
+            <version>1.6.6</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -49,7 +49,15 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.11.0</version>
+            <version>2.16.1</version>
+        </dependency>
+        <!-- 显式声明，压过 poi-ooxml 4.1.2 自带的 commons-compress 1.19（四条 HIGH）。
+             POI 本身不能动（4.1.2 与 poi-ooxml-schemas 绑定），只能把压缩库单独提上来；
+             1.21 是仍兼容 POI 4.1.2 的最后一个安全版本（1.26 起内部 API 有删改）。 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.21</version>
         </dependency>
     </dependencies>
 
